@@ -23,7 +23,7 @@ jobs:
       uses: docker/login-action@v1
       with:
         username: ${{ secrets.DOCKERHUB_USERNAME }}
-        password: ${{ secrets.DOCKERHUB_PASSWORD }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
     - name: Set tag name
       id: tag_name
@@ -41,6 +41,6 @@ jobs:
         file: ./Dockerfile
         push: true
         tags: |
-          yangclivia/pandora-to-api:${{ steps.tag_name.outputs.tag }}
+          leejacky/webtoapi:latest
         platforms: linux/amd64,linux/arm64
         build-args: TARGETPLATFORM=${{ matrix.platform }}
