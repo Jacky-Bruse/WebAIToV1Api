@@ -1,4 +1,4 @@
-name: xyhelper Build and Push Docker Image
+name: Build and Push Docker Image
 
 on:
   release:
@@ -8,7 +8,9 @@ on:
       tag:
         description: 'Tag Name'
         required: true
-
+  push:
+    branches:
+      - main  # 你的主要分支名称，可以根据实际情况修改
 
 jobs:
   build-and-push:
