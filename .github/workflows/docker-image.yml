@@ -1,13 +1,6 @@
 name: Build and Push Docker Image
 
 on:
-  release:
-    types: [created]
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag Name'
-        required: true
   push:
     branches:
       - main  # 你的主要分支名称，可以根据实际情况修改
