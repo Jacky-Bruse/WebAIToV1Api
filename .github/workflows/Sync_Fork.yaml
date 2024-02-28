@@ -26,8 +26,8 @@ jobs:
         uses: aormsby/Fork-Sync-With-Upstream-action@v3.4
         with:
           upstream_sync_repo: Yanyutin753/xyhelperToV1Api_refresh    #修改原库
-          upstream_sync_branch: main             #对应分支
-          target_sync_branch: main               #fork后的分支
+          upstream_sync_branch: xyhelper             #对应分支
+          target_sync_branch: xyhelper               #fork后的分支
           target_repo_token: ${{ secrets.GITHUB_TOKEN }} # automatically generated, no need to set
 
           # Set test_mode true to run tests instead of the true action!!
