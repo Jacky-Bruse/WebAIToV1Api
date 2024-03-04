@@ -34,7 +34,7 @@
 
 - [x] 支持 gpt-3.5-turbo
 
-- [x] 支持 gpts
+- [x] 支持 动态gpts
 
 - [x] 支持 流式输出
 
@@ -185,7 +185,7 @@ PS. 注意，arkose_urls中的地址需要支持PandoraNext的Arkose Token获取
 }
 ```
 
-注意：使用该配置的时候需要保证正确填写 `docker-compose.yml` 的环境变量 `KEY_FOR_GPTS_INFO`，同时该变量设置的 `key` 允许访问所有配置的 GPTS。
+注意：使用该配置的时候需要保证正确填写 `config.json` 文件的环境变量 `KEY_FOR_GPTS_INFO`，同时该变量设置的 `key` 允许访问所有配置的 GPTS。
 
 ## 绘图接口使用说明
 
@@ -339,7 +339,7 @@ services:
       - CUSTOM_MODELS=-all,+gpt-3.5-turbo,+gpt-4-s,+gpt-4-mobile,+gpt-4-vision-preview,+gpt-4-gizmo-XXX
       - OPENAI_API_KEY=<正确的refresh_token>
       - BASE_URL=<backend-to-api容器地址>
-      - CUSTOM_MODELS=+gpt-4-s,+gpt-4-mobile,+<gpts.json 中的模型名>
+      - CUSTOM_MODELS=-gpt-4-0613,-gpt-4-32k,-gpt-4-32k-0613,-gpt-4-turbo-preview,-gpt-4-1106-preview,-gpt-4-0125-preview,-gpt-3.5-turbo-0125,-gpt-3.5-turbo-0613,-gpt-3.5-turbo-1106,-gpt-3.5-turbo-16k,-gpt-3.5-turbo-16k-0613,+gpt-3.5-turbo,+gpt-4,+gpt-4-mobile,+gpt-4-vision-preview,+gpt-4-mobile,+<gpts.json 中的模型名>
 
 ```
 
