@@ -1,32 +1,21 @@
 # 导入所需的库
-from flask import Flask, request, jsonify, Response, send_from_directory
-from flask_cors import CORS, cross_origin
-import requests
-import uuid
-import json
-import time
-import os
-from datetime import datetime
-from PIL import Image
-import io
-import re
-import threading
-from queue import Queue, Empty
-import logging
-from logging.handlers import TimedRotatingFileHandler
-import uuid
-import hashlib
-import requests
-import json
-import hashlib
-from PIL import Image
-from io import BytesIO
-from urllib.parse import urlparse, urlunparse
 import base64
-from fake_useragent import UserAgent
+import hashlib
+import json
+import logging
 import os
+import uuid
+from datetime import datetime
+from io import BytesIO
+from logging.handlers import TimedRotatingFileHandler
+from queue import Queue
 from urllib.parse import urlparse
+
+import requests
+from fake_useragent import UserAgent
+from flask import Flask, request, jsonify, Response, send_from_directory
 from flask_apscheduler import APScheduler
+from flask_cors import CORS, cross_origin
 
 
 # 读取配置文件
@@ -51,6 +40,7 @@ API_PREFIX = CONFIG.get('backend_container_api_prefix', '')
 GPT_4_S_New_Names = CONFIG.get('gpt_4_s_new_name', 'gpt-4-s').split(',')
 GPT_4_MOBILE_NEW_NAMES = CONFIG.get('gpt_4_mobile_new_name', 'gpt-4-mobile').split(',')
 GPT_3_5_NEW_NAMES = CONFIG.get('gpt_3_5_new_name', 'gpt-3.5-turbo').split(',')
+GPT_4_O_NEW_NAMES = CONFIG.get('gpt_4_o_new_name', 'gpt-4-o').split(',')
 
 BOT_MODE = CONFIG.get('bot_mode', {})
 BOT_MODE_ENABLED = BOT_MODE.get('enabled', 'false').lower() == 'true'
@@ -132,7 +122,6 @@ logger.addHandler(stream_handler)
 # 创建FakeUserAgent对象
 ua = UserAgent()
 
-import random
 import threading
 
 #  开启线程锁
@@ -335,9 +324,9 @@ scheduler.start()
 # PANDORA_UPLOAD_URL = 'files.pandoranext.com'
 
 
-VERSION = '0.7.9.1'
+VERSION = '0.7.9.3'
 # VERSION = 'test'
-UPDATE_INFO = '适配调用team对话,提供查询ChatGPT-Account-ID的/getAccountID接口'
+UPDATE_INFO = '支持最新的gpt-4-o模型,并重定向gpt-4-mobile到gpt-4-s'
 # UPDATE_INFO = '【仅供临时测试使用】 '
 
 with app.app_context():
@@ -448,7 +437,11 @@ with app.app_context():
             "name": name.strip(),
             "ori_name": "gpt-3.5-turbo"
         })
-
+    for name in GPT_4_O_NEW_NAMES:
+        gpts_configurations.append({
+            "name": name.strip(),
+            "ori_name": "gpt-4-o"
+        })
     logger.info(f"GPTS 配置信息")
 
     # 加载配置并添加到全局列表
@@ -719,7 +712,7 @@ def send_text_prompt_and_get_response(messages, api_key, account_id, stream, mod
         message_id = str(uuid.uuid4())
         content = message.get("content")
 
-        if isinstance(content, list) and ori_model_name != 'gpt-3.5-turbo':
+        if isinstance(content, list) and ori_model_name not in ['gpt-3.5-turbo']:
             logger.debug(f"gpt-vision 调用")
             new_parts = []
             attachments = []
@@ -847,13 +840,9 @@ def send_text_prompt_and_get_response(messages, api_key, account_id, stream, mod
                 "action": "next",
                 "messages": formatted_messages,
                 "parent_message_id": str(uuid.uuid4()),
-                "model": "gpt-4-mobile",
+                "model": "gpt-4",
                 "timezone_offset_min": -480,
-                "suggestions": [
-                    "Give me 3 ideas about how to plan good New Years resolutions. Give me some that are personal, family, and professionally-oriented.",
-                    "Write a text asking a friend to be my plus-one at a wedding next month. I want to keep it super short and casual, and offer an out.",
-                    "Design a database schema for an online merch store.",
-                    "Compare Gen Z and Millennial marketing strategies for sunglasses."],
+                "suggestions": [],
                 "history_and_training_disabled": False,
                 "conversation_mode": {"kind": "primary_assistant"}, "force_paragen": False, "force_rate_limit": False
             }
@@ -864,6 +853,28 @@ def send_text_prompt_and_get_response(messages, api_key, account_id, stream, mod
                 "messages": formatted_messages,
                 "parent_message_id": str(uuid.uuid4()),
                 "model": "text-davinci-002-render-sha",
+                "timezone_offset_min": -480,
+                "suggestions": [
+                    "What are 5 creative things I could do with my kids' art? I don't want to throw them away, but it's also so much clutter.",
+                    "I want to cheer up my friend who's having a rough day. Can you suggest a couple short and sweet text messages to go with a kitten gif?",
+                    "Come up with 5 concepts for a retro-style arcade game.",
+                    "I have a photoshoot tomorrow. Can you recommend me some colors and outfit options that will look good on camera?"
+                ],
+                "history_and_training_disabled": False,
+                "arkose_token": None,
+                "conversation_mode": {
+                    "kind": "primary_assistant"
+                },
+                "force_paragen": False,
+                "force_rate_limit": False
+            }
+        elif ori_model_name == 'gpt-4-o':
+            payload = {
+                # 构建 payload
+                "action": "next",
+                "messages": formatted_messages,
+                "parent_message_id": str(uuid.uuid4()),
+                "model": "gpt-4o",
                 "timezone_offset_min": -480,
                 "suggestions": [
                     "What are 5 creative things I could do with my kids' art? I don't want to throw them away, but it's also so much clutter.",
@@ -913,7 +924,7 @@ def send_text_prompt_and_get_response(messages, api_key, account_id, stream, mod
         if NEED_DELETE_CONVERSATION_AFTER_RESPONSE:
             logger.debug(f"是否保留会话: {NEED_DELETE_CONVERSATION_AFTER_RESPONSE == False}")
             payload['history_and_training_disabled'] = True
-        if ori_model_name != 'gpt-3.5-turbo':
+        if ori_model_name not in ['gpt-3.5-turbo', 'gpt-4-o']:
             if CUSTOM_ARKOSE:
                 token = get_token()
                 payload["arkose_token"] = token
@@ -1492,7 +1503,8 @@ def data_fetcher(upstream_response, data_queue, stop_event, last_data_time, api_
                                                             execution_output_image_url_buffer = f"{UPLOAD_BASE_URL}/{today_image_url}"
 
                                                         else:
-                                                            logger.error(f"下载图片失败: {image_download_response.text}")
+                                                            logger.error(
+                                                                f"下载图片失败: {image_download_response.text}")
 
                                             execution_output_image_id_buffer = image_file_id
 
@@ -2363,7 +2375,22 @@ def catch_all(path):
     logger.debug(f"请求头: {request.headers}")
     logger.debug(f"请求体: {request.data}")
 
-    return jsonify({"message": "Welcome to Inker's World"}), 200
+    html_string = f"""
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>Document</title>
+            </head>
+            <body>
+                <p> Thanks for using RefreshToV1Api {VERSION}</p>
+                <p> 感谢Ink-Osier大佬的付出，敬礼！！！</p>
+                <p><a href="https://github.com/Yanyutin753/RefreshToV1Api">项目地址</a></p>
+            </body>
+        </html>
+        """
+    return html_string, 500
 
 
 @app.route('/images/<filename>')
