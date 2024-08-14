@@ -3,6 +3,7 @@ import base64
 import hashlib
 import json
 import logging
+import mimetypes
 import os
 import uuid
 from datetime import datetime
@@ -40,7 +41,8 @@ API_PREFIX = CONFIG.get('backend_container_api_prefix', '')
 GPT_4_S_New_Names = CONFIG.get('gpt_4_s_new_name', 'gpt-4-s').split(',')
 GPT_4_MOBILE_NEW_NAMES = CONFIG.get('gpt_4_mobile_new_name', 'gpt-4-mobile').split(',')
 GPT_3_5_NEW_NAMES = CONFIG.get('gpt_3_5_new_name', 'gpt-3.5-turbo').split(',')
-GPT_4_O_NEW_NAMES = CONFIG.get('gpt_4_o_new_name', 'gpt-4-o').split(',')
+GPT_4_O_NEW_NAMES = CONFIG.get('gpt_4_o_new_name', 'gpt-4o').split(',')
+GPT_4_O_MINI_NEW_NAMES = CONFIG.get('gpt_4_o_mini_new_name', 'gpt-4o-mini').split(',')
 
 BOT_MODE = CONFIG.get('bot_mode', {})
 BOT_MODE_ENABLED = BOT_MODE.get('enabled', 'false').lower() == 'true'
@@ -136,7 +138,6 @@ def getPROXY_API_PREFIX(lock):
                 return None
             else:
                 return "/" + (PROXY_API_PREFIX[index % len(PROXY_API_PREFIX)])
-                index += 1
 
 
 def generate_unique_id(prefix):
@@ -324,9 +325,9 @@ scheduler.start()
 # PANDORA_UPLOAD_URL = 'files.pandoranext.com'
 
 
-VERSION = '0.7.9.3'
+VERSION = '0.7.9.5'
 # VERSION = 'test'
-UPDATE_INFO = '支持最新的gpt-4-o模型,并重定向gpt-4-mobile到gpt-4-s'
+UPDATE_INFO = '✨ 支持最新的gpt-4o-mini 模型'
 # UPDATE_INFO = '【仅供临时测试使用】 '
 
 with app.app_context():
@@ -442,6 +443,11 @@ with app.app_context():
             "name": name.strip(),
             "ori_name": "gpt-4-o"
         })
+    for name in GPT_4_O_MINI_NEW_NAMES:
+        gpts_configurations.append({
+            "name": name.strip(),
+            "ori_name": "gpt-4o-mini"
+        })
     logger.info(f"GPTS 配置信息")
 
     # 加载配置并添加到全局列表
@@ -492,7 +498,6 @@ def get_token():
             logger.error(f"请求异常: {e}")
 
     raise Exception("获取 arkose token 失败")
-    return None
 
 
 import os
@@ -679,7 +684,7 @@ def get_file_extension(mime_type):
         "text/x-script.python": ".py",
         # 其他 MIME 类型和扩展名...
     }
-    return extension_mapping.get(mime_type, "")
+    return extension_mapping.get(mime_type, mimetypes.guess_extension(mime_type))
 
 
 my_files_types = [
@@ -852,13 +857,16 @@ def send_text_prompt_and_get_response(messages, api_key, account_id, stream, mod
                 "action": "next",
                 "messages": formatted_messages,
                 "parent_message_id": str(uuid.uuid4()),
-                "model": "text-davinci-002-render-sha",
+                "model": "gpt-4o-mini",
                 "timezone_offset_min": -480,
                 "suggestions": [
-                    "What are 5 creative things I could do with my kids' art? I don't want to throw them away, but it's also so much clutter.",
-                    "I want to cheer up my friend who's having a rough day. Can you suggest a couple short and sweet text messages to go with a kitten gif?",
+                    "What are 5 creative things I could do with my kids' art? I don't want to throw them away, "
+                    "but it's also so much clutter.",
+                    "I want to cheer up my friend who's having a rough day. Can you suggest a couple short and sweet "
+                    "text messages to go with a kitten gif?",
                     "Come up with 5 concepts for a retro-style arcade game.",
-                    "I have a photoshoot tomorrow. Can you recommend me some colors and outfit options that will look good on camera?"
+                    "I have a photoshoot tomorrow. Can you recommend me some colors and outfit options that will look "
+                    "good on camera?"
                 ],
                 "history_and_training_disabled": False,
                 "arkose_token": None,
@@ -866,6 +874,7 @@ def send_text_prompt_and_get_response(messages, api_key, account_id, stream, mod
                     "kind": "primary_assistant"
                 },
                 "force_paragen": False,
+                "force_paragen_model_slug": "",
                 "force_rate_limit": False
             }
         elif ori_model_name == 'gpt-4-o':
@@ -888,6 +897,32 @@ def send_text_prompt_and_get_response(messages, api_key, account_id, stream, mod
                     "kind": "primary_assistant"
                 },
                 "force_paragen": False,
+                "force_rate_limit": False
+            }
+        elif ori_model_name == 'gpt-4o-mini':
+            payload = {
+                # 构建 payload
+                "action": "next",
+                "messages": formatted_messages,
+                "parent_message_id": str(uuid.uuid4()),
+                "model": "gpt-4o-mini",
+                "timezone_offset_min": -480,
+                "suggestions": [
+                    "What are 5 creative things I could do with my kids' art? I don't want to throw them away, "
+                    "but it's also so much clutter.",
+                    "I want to cheer up my friend who's having a rough day. Can you suggest a couple short and sweet "
+                    "text messages to go with a kitten gif?",
+                    "Come up with 5 concepts for a retro-style arcade game.",
+                    "I have a photoshoot tomorrow. Can you recommend me some colors and outfit options that will look "
+                    "good on camera?"
+                ],
+                "history_and_training_disabled": False,
+                "arkose_token": None,
+                "conversation_mode": {
+                    "kind": "primary_assistant"
+                },
+                "force_paragen": False,
+                "force_paragen_model_slug": "",
                 "force_rate_limit": False
             }
         elif 'gpt-4-gizmo-' in model:
@@ -924,7 +959,7 @@ def send_text_prompt_and_get_response(messages, api_key, account_id, stream, mod
         if NEED_DELETE_CONVERSATION_AFTER_RESPONSE:
             logger.debug(f"是否保留会话: {NEED_DELETE_CONVERSATION_AFTER_RESPONSE == False}")
             payload['history_and_training_disabled'] = True
-        if ori_model_name not in ['gpt-3.5-turbo', 'gpt-4-o']:
+        if ori_model_name not in ['gpt-3.5-turbo']:
             if CUSTOM_ARKOSE:
                 token = get_token()
                 payload["arkose_token"] = token
@@ -1175,6 +1210,7 @@ def data_fetcher(upstream_response, data_queue, stop_event, last_data_time, api_
     file_output_accumulating = False
     execution_output_image_url_buffer = ""
     execution_output_image_id_buffer = ""
+    message = None
     try:
         for chunk in upstream_response.iter_content(chunk_size=1024):
             if stop_event.is_set():
@@ -1773,6 +1809,7 @@ def chat_completions():
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({"error": "Authorization header is missing or invalid"}), 401
+    api_key = None
     try:
         api_key = auth_header.split(' ')[1].split(',')[0].strip()
         account_id = auth_header.split(' ')[1].split(',')[1].strip()
@@ -1796,6 +1833,9 @@ def chat_completions():
 
     upstream_response = send_text_prompt_and_get_response(messages, api_key, account_id, stream, model,
                                                           proxy_api_prefix)
+
+    if upstream_response.status_code != 200:
+        return jsonify({"error": f"{upstream_response.text}"}), upstream_response.status_code
 
     # 在非流式响应的情况下，我们需要一个变量来累积所有的 new_text
     all_new_text = ""
@@ -1930,18 +1970,21 @@ def images_generations():
         return jsonify({"error": "PROXY_API_PREFIX is not accessible"}), 401
     data = request.json
     logger.debug(f"data: {data}")
+    api_key = None
     # messages = data.get('messages')
     model = data.get('model')
     accessible_model_list = get_accessible_model_list()
     if model not in accessible_model_list and not 'gpt-4-gizmo-' in model:
         return jsonify({"error": "model is not accessible"}), 401
 
-    prompt = data.get('prompt', '')
-
-    prompt = DALLE_PROMPT_PREFIX + prompt
-
     # 获取请求中的response_format参数，默认为"url"
     response_format = data.get('response_format', 'url')
+    # 获取请求中的size参数，默认为"1024x1024"
+    response_size = data.get('size', '1024x1024')
+
+    prompt = data.get('prompt', '')
+
+    prompt = DALLE_PROMPT_PREFIX + '\nprompt:' + prompt + '\nsize:' + response_size
 
     # stream = data.get('stream', False)
 
@@ -1982,6 +2025,9 @@ def images_generations():
 
     upstream_response = send_text_prompt_and_get_response(messages, api_key, account_id, False, model, proxy_api_prefix)
 
+    if upstream_response.status_code != 200:
+        return jsonify({"error": f"{upstream_response.text}"}), upstream_response.status_code
+
     # 在非流式响应的情况下，我们需要一个变量来累积所有的 new_text
     all_new_text = ""
 
@@ -2000,6 +2046,7 @@ def images_generations():
         conversation_id = ''
         citation_buffer = ""
         citation_accumulating = False
+        message = None
         for chunk in upstream_response.iter_content(chunk_size=1024):
             if chunk:
                 buffer += chunk.decode('utf-8')
@@ -2022,7 +2069,7 @@ def images_generations():
                         # print(f"data_json: {data_json}")
                         message = data_json.get("message", {})
 
-                        if message == None:
+                        if message is None:
                             logger.error(f"message 为空: data_json: {data_json}")
 
                         message_status = message.get("status")
@@ -2414,18 +2461,15 @@ def get_file(filename):
 @app.route(f'/{API_PREFIX}/getAccountID' if API_PREFIX else '/getAccountID', methods=['POST'])
 @cross_origin()  # 使用装饰器来允许跨域请求
 def getAccountID():
-    logger.info(f"New Img Request")
+    logger.info(f"New Account Request")
     proxy_api_prefix = getPROXY_API_PREFIX(lock)
-    if proxy_api_prefix == None:
+    if proxy_api_prefix is None:
         return jsonify({"error": "PROXY_API_PREFIX is not accessible"}), 401
     auth_header = request.headers.get('Authorization')
     if not auth_header or not auth_header.startswith('Bearer '):
         return jsonify({"error": "Authorization header is missing or invalid"}), 401
-    try:
-        api_key = auth_header.split(' ')[1].split(',')[0].strip()
-        account_id = auth_header.split(' ')[1].split(',')[1].strip()
-    except IndexError:
-        account_id = None
+    api_key = auth_header.split(' ')[1].split(',')[0].strip()
+
     if not api_key.startswith("eyJhb"):
         refresh_token = api_key
         if api_key in refresh_dict:
